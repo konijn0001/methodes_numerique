@@ -1,0 +1,151 @@
+!------------------------------------------------------------
+!
+!   TD1 du cours de méthodes numériques pour la physique
+!
+!   Auteur : Louis Rassinfosse
+!
+!   Date de création : 24/09/2018
+!
+!   Dernière modification : 24/09/2018
+!
+!   Remarques : 
+!
+!------------------------------------------------------------
+
+!------------------------------------------------------------
+!                        MODULE KINDS
+!------------------------------------------------------------
+module kinds
+implicit none
+
+integer, parameter :: r = 8
+
+end module kinds
+!------------------------------------------------------------
+!                       MODULE INTERFACE
+!------------------------------------------------------------
+module interface
+interface 
+    Function testConvergence(c,zk)
+        use kinds
+
+        complex(kind=r), intent(IN) :: c, zk
+        real :: Rc
+        integer :: testConvergence
+    
+    end Function
+end interface
+end module interface
+!------------------------------------------------------------
+!                        fonctions
+!------------------------------------------------------------
+    Function testConvergence(c,zk)
+        use kinds
+
+        complex(kind=r), intent(IN) :: c, zk
+        real :: Rc, zkNorm
+        integer :: testConvergence
+
+        Rc = max(sqrt(real(c)**2 + aimag(c)**2), 2.)
+        zkNorm = sqrt(real(zk)**2 + aimag(zk)**2)
+
+        if( Rc >= zkNorm) then
+            testConvergence = 1
+        else if ( Rc < zkNorm) then
+            testConvergence = 0
+        else
+            print *, "Erreur dans la fonction 'testConvergence'"
+        end if
+    
+    end Function
+
+    Function sqrt_cmplx(z)
+
+        use kinds      
+        complex(kind=r) :: sqrt_cmplx
+        complex(kind=r),intent(in) :: z
+        real(kind=r) :: phi
+
+        phi = atan2(aimag(z),real(z))
+        sqrt_cmplx = sqrt(abs(z)) * cmplx(cos(phi/2._r),sin(phi/2._r))
+
+    end Function sqrt_cmplx
+!------------------------------------------------------------
+!                 Partie principale du code
+!------------------------------------------------------------
+program main
+
+use kinds
+use interface
+
+implicit none
+
+!déclaration des variables
+integer, parameter :: kMax = 25, z0RealNbValues = 1000, z0cmplxNbvalues = 1000    !z0RealNbValues: Number of values for the z0Real variable
+real(kind=r), parameter :: z0RealMax = 2, z0cmplxMin = -2                       
+real(kind=r), parameter :: cReal = -1, cComplex = 0
+complex(kind=r), parameter :: c = cmplx(cReal, cComplex)
+
+real(kind=r)  :: z0RealMin=-2, z0cmplxMax=2                                     
+complex(kind=r), dimension(:,:), allocatable :: z0
+integer(kind=r), dimension(:,:), allocatable :: kArray
+complex(kind=r) :: zk    
+integer :: k, i, j
+real :: increment, z0cmplx, z0Real
+
+z0Real = z0RealMin
+z0cmplx = z0cmplxMax
+
+
+increment = ((z0RealMax - z0RealMin))/(z0RealNbValues-1.)                       
+
+allocate(z0(z0RealNbValues,z0cmplxNbvalues))
+allocate(kArray(z0RealNbValues,z0cmplxNbvalues))
+
+do j = 1, z0RealNbValues, 1        !changes real values    
+    do i = 1, z0cmplxNbvalues, 1   !changes complex values
+        z0(i,j) = cmplx(z0Real,z0cmplx)
+        z0cmplx = z0cmplx - increment
+    end do
+    z0cmplx = z0cmplxMax
+    z0Real = z0Real + increment
+enddo 
+
+!open(10, file='z0.txt')
+!        do i = 1, z0cmplxNbvalues
+!            do j = 1, z0RealNbValues
+!                write(10,1,advance='no') real(z0(i,j)), aimag(z0(i,j))
+!            end do
+!               write(10,*)  !permet de passer à la ligne
+!		end do
+!1 format("(", f6.3, ",", f6.3, ") ")
+!close(10)
+
+do j = 1, z0RealNbValues, 1        !changes real values    
+    do i = 1, z0cmplxNbvalues, 1   !changes complex values
+        zk = z0(i,j)
+        do k = 0, kMax, 1
+            if(testConvergence(c,zk)==0) then
+                kArray(i,j) = k
+                exit
+            else if(testConvergence(c,zk)==1 .and. k == kMax) then
+                kArray(i,j) = k
+                exit
+            end if
+            zk = zk**2 + c
+        end do
+    end do
+end do 
+
+open(15, file="k.txt")
+        do i = 1, z0cmplxNbvalues
+            do j = 1, z0RealNbValues
+                write(15,2,advance='no') kArray(i,j)
+            end do
+               write(15,*)  !permet de passer à la ligne
+		end do
+2 format(i2, " ")
+close(15)
+
+pause
+end program main
